@@ -75,6 +75,6 @@ if __name__ == '__main__':
 
     TCPORT = int(args['--tcp-port'][0])
     UDPORT = int(args['--udp-port'][0])
-    TIMEOUT = int(args['--timeout'][0])
+    TIMEOUT = int(args['--timeout'])
 
     main()
