@@ -1,3 +1,13 @@
+"""Shotcast server
+
+Usage: [-h] [-t | --tcp-port 8888] [-u | --udp-port 8889]
+
+Options:
+    -h --help               Show this help.
+    -t --tcp-port <port>    Shotcast client listening port number [default: 8888]
+    -u --udp-port <port>    Shotcast server(this) listening port number [default: 8889]
+"""
+
 TCPORT = 8888
 UDPORT = 8889
 
@@ -5,16 +15,20 @@ def screenshot():
     import Xlib
     import Xlib.display
     import subprocess
+    import tempfile
 
     disp = Xlib.display.Display()
     root = disp.screen().root
 
     id = root.get_full_property(disp.intern_atom("_NET_ACTIVE_WINDOW"), Xlib.X.AnyPropertyType).value[0]
-    r = subprocess.run(['import', '-window', str(id), "/tmp/shot.png"])
+
+    _, f = tempfile.mkstemp(dir="/tmp", suffix=".png")
+
+    r = subprocess.run(['import', '-silent', '-window', str(id), f])
     if r.returncode != 0:
         raise Exception("Failed to capture window") 
 
-    return open("/tmp/shot.png", "rb").read()
+    return open(f, "rb").read()
 
 def broadcastaddrs():
     import netifaces
@@ -28,25 +42,34 @@ def broadcastaddrs():
                 addrs.append(baddr)
     return addrs
 
-img = screenshot()
+def main():
+    img = screenshot()
+
+    import socket
+    import asyncio
+
+    class Server(asyncio.DatagramProtocol):
+        def __init__(self, data):
+            self.data = data
+
+        def datagram_received(self, data, addr):
+            tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            tcp.connect((addr[0], TCPORT))
+            tcp.send(self.data)
 
 
-import socket
-import asyncio
-
-class Server(asyncio.DatagramProtocol):
-    def __init__(self, data):
-        self.data = data
-
-    def datagram_received(self, data, addr):
-        tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp.connect((addr[0], TCPORT))
-        tcp.send(self.data)
+    ev_loop = asyncio.get_event_loop()
+    factory = ev_loop.create_datagram_endpoint(lambda: Server(img), local_addr=("0.0.0.0", UDPORT))
+    server = ev_loop.run_until_complete(factory)
+    ev_loop.call_later(60, lambda: ev_loop.stop())
+    ev_loop.run_forever()
 
 
-ev_loop = asyncio.get_event_loop()
-factory = ev_loop.create_datagram_endpoint(lambda: Server(img), local_addr=("0.0.0.0", UDPORT))
-server = ev_loop.run_until_complete(factory)
-ev_loop.call_later(60, lambda: ev_loop.stop())
-ev_loop.run_forever()
+if __name__ == '__main__':
+    from docopt import docopt
+    args = docopt(__doc__)
 
+    TCPORT = int(args['--tcp-port'][0])
+    UDPORT = int(args['--udp-port'][0])
+
+    main()
