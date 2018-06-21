@@ -1,19 +1,24 @@
+#!/usr/bin/env python
+
 """Shotcast client
 
-Usage: [-h] [-t | --tcp-port 8888] [-u | --udp-port 8889] [--viewer <command>]
+Usage: [-h] [-t | --tcp-port 8888] [-u | --udp-port 8889] [--viewer <command>] [--timeout 60]
 
 Options:
     -h --help               Show this help.
     -t --tcp-port <port>    Shotcast client(this) listening port number [default: 8888]
     -u --udp-port <port>    Shotcast server listening port number [default: 8889]
-    --viewer <command>  Received image viewer default is xdg-open in Linux
+    --viewer <command>      Received image viewer default is xdg-open in Linux
+    --timeout <seconds>     Requesting timeout second [default: 60]
 """
+
 import socket
 import threading
 
 TCPORT = 8888
 UDPORT = 8889
 VIEWER = None
+TIMEOUT = 10
 
 def broadcastaddrs():
     import netifaces
@@ -32,9 +37,9 @@ def recvall(sock):
     buf = b''
     while True:
         data = sock.recv(SIZE)
-        buf += data
-        if len(data) < SIZE:
+        if not data:
             break
+        buf += data
     return buf
 
 def imgrecv_server(server):
@@ -77,7 +82,7 @@ def main():
         except socket.timeout:
             continue
 
-    t.join(timeout=10)
+    t.join(timeout=TIMEOUT)
 
 if __name__ == '__main__':
     from docopt import docopt
@@ -85,6 +90,7 @@ if __name__ == '__main__':
 
     TCPORT = int(args['--tcp-port'][0])
     UDPORT = int(args['--udp-port'][0])
+    TIMEOUT = int(args['--timeout'][0])
 
     if args.get('--viewer'):
         VIEWER = args['--viewer']

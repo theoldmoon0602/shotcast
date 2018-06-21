@@ -1,15 +1,19 @@
+#!/usr/bin/env python
+
 """Shotcast server
 
-Usage: [-h] [-t | --tcp-port 8888] [-u | --udp-port 8889]
+Usage: [-h] [-t | --tcp-port 8888] [-u | --udp-port 8889] [--timeout 60]
 
 Options:
     -h --help               Show this help.
     -t --tcp-port <port>    Shotcast client listening port number [default: 8888]
     -u --udp-port <port>    Shotcast server(this) listening port number [default: 8889]
+    --timeout <seconds>         Server listening seconds [default: 60]
 """
 
 TCPORT = 8888
 UDPORT = 8889
+TIMEOUT = 60
 
 def screenshot():
     import Xlib
@@ -61,7 +65,7 @@ def main():
     ev_loop = asyncio.get_event_loop()
     factory = ev_loop.create_datagram_endpoint(lambda: Server(img), local_addr=("0.0.0.0", UDPORT))
     server = ev_loop.run_until_complete(factory)
-    ev_loop.call_later(60, lambda: ev_loop.stop())
+    ev_loop.call_later(TIMEOUT, lambda: ev_loop.stop())
     ev_loop.run_forever()
 
 
@@ -71,5 +75,6 @@ if __name__ == '__main__':
 
     TCPORT = int(args['--tcp-port'][0])
     UDPORT = int(args['--udp-port'][0])
+    TIMEOUT = int(args['--timeout'][0])
 
     main()
